@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "quilt_loader": {
+    "group": "com.christofmeg.fastentitytransfer",
+    "id": "fastentitytransfer",
+    "version": "${version}",
+    "metadata": {
+      "name": "Fast Entity Transfer",
+      "description": "Factorio styled Fast Entity Transfer. Activated by CTRL + LEFT CLICK with items that are suitable for Blasting/Smelting/Smoking.",
+      "contributors": {
+        "Christofmeg": "Owner",
+        "Abbie": "Contributor"
+      },
+      "contact": {
+        "homepage": "https://github.com/Christofmeg/FastEntityTransfer",
+        "issues": "https://github.com/Christofmeg/FastEntityTransfer/issues",
+        "sources": "https://github.com/Christofmeg/FastEntityTransfer"
+      },
+      "icon": "assets/fastentitytransfer/icon.png"
+    },
+    "intermediate_mappings": "net.fabricmc:intermediary",
+    "entrypoints": {
+      "init": "com.christofmeg.fastentitytransfer.FastEntityTransfer"
+    },
+    "depends": [
+      {
+        "id": "quilt_loader",
+        "versions": ">=0.17.0-"
+      },
+      {
+        "id": "quilted_fabric_api",
+        "versions": ">=4.0.0-"
+      },
+      {
+        "id": "quilt_item_content_registry",
+        "versions": ">=3.0.0-"
+      },
+      {
+        "id": "minecraft",
+        "versions": ">=1.19.2"
+      }
+    ]
+  }
+}

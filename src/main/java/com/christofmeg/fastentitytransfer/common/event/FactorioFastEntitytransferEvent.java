@@ -2,10 +2,13 @@ package com.christofmeg.fastentitytransfer.common.event;
 
 import java.util.Optional;
 
+import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
@@ -20,63 +23,51 @@ import net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity;
 import net.minecraft.world.level.block.entity.BlastFurnaceBlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.SmokerBlockEntity;
-import net.minecraftforge.common.ForgeHooks;
-import net.minecraftforge.event.entity.player.PlayerInteractEvent;
-import net.minecraftforge.event.entity.player.PlayerInteractEvent.LeftClickBlock;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import org.quiltmc.qsl.item.content.registry.api.ItemContentRegistries;
 
-@EventBusSubscriber(modid = "fastentitytransfer", bus = EventBusSubscriber.Bus.FORGE)
-public class FactorioFastEntitytransferEvent {
+public class FactorioFastEntitytransferEvent implements AttackBlockCallback {
+
+	public static final FactorioFastEntitytransferEvent INSTANCE = new FactorioFastEntitytransferEvent();
 
 	@SuppressWarnings({ "resource", })
-	@SubscribeEvent
-	public static void FastEntitytransfer(final PlayerInteractEvent.LeftClickBlock event) {
-		Level level = event.getLevel();
-		BlockPos pos = event.getPos();
-		Player player = event.getEntity();
-		InteractionHand hand = event.getHand();
+	public InteractionResult interact(Player player, Level level, InteractionHand hand, BlockPos pos, Direction direction) {
 		ItemStack stack = player.getItemInHand(hand);
 		boolean isSprintKeyDown = Minecraft.getInstance().options.keySprint.isDown();
 		BlockEntity blockEntity = level.getBlockEntity(pos);
 
 		if (!level.isClientSide() && isSprintKeyDown) {
 
-			if (blockEntity instanceof AbstractFurnaceBlockEntity) {
-				AbstractFurnaceBlockEntity abstractBlockEntity = ((AbstractFurnaceBlockEntity) blockEntity);
+			if (blockEntity instanceof AbstractFurnaceBlockEntity abstractBlockEntity) {
 				RecipeType<SmeltingRecipe> recipeType = RecipeType.SMELTING;
-				doInteractions(blockEntity, recipeType,
+				return doInteractions(blockEntity, recipeType,
 						level.getRecipeManager().getRecipeFor(recipeType, new SimpleContainer(stack), level),
 						level.getRecipeManager().getRecipeFor(recipeType,
 								new SimpleContainer(abstractBlockEntity.getItem(0)), level),
-						event);
+						player, hand);
 			}
-			if (blockEntity instanceof SmokerBlockEntity) {
-				SmokerBlockEntity smokerBlockEntity = ((SmokerBlockEntity) blockEntity);
+			if (blockEntity instanceof SmokerBlockEntity smokerBlockEntity) {
 				RecipeType<SmokingRecipe> recipeType = RecipeType.SMOKING;
-				doInteractions(blockEntity, recipeType,
+				return doInteractions(blockEntity, recipeType,
 						level.getRecipeManager().getRecipeFor(recipeType, new SimpleContainer(stack), level),
 						level.getRecipeManager().getRecipeFor(recipeType,
 								new SimpleContainer(smokerBlockEntity.getItem(0)), level),
-						event);
+						player, hand);
 			}
-			if (blockEntity instanceof BlastFurnaceBlockEntity) {
-				BlastFurnaceBlockEntity smokerBlockEntity = ((BlastFurnaceBlockEntity) blockEntity);
+			if (blockEntity instanceof BlastFurnaceBlockEntity smokerBlockEntity) {
 				RecipeType<BlastingRecipe> recipeType = RecipeType.BLASTING;
-				doInteractions(blockEntity, recipeType,
+				return doInteractions(blockEntity, recipeType,
 						level.getRecipeManager().getRecipeFor(recipeType, new SimpleContainer(stack), level),
 						level.getRecipeManager().getRecipeFor(recipeType,
 								new SimpleContainer(smokerBlockEntity.getItem(0)), level),
-						event);
+						player, hand);
 			}
 		}
+		return InteractionResult.PASS;
 	}
 
-	private static void doInteractions(BlockEntity blockEntity, RecipeType<?> recipeType, Optional<?> optional,
-			Optional<?> inputSlotOptional, final LeftClickBlock event) {
+	private static InteractionResult doInteractions(BlockEntity blockEntity, RecipeType<?> recipeType, Optional<?> optional,
+			Optional<?> inputSlotOptional, Player player, InteractionHand hand) {
 		AbstractFurnaceBlockEntity abstractBlockEntity = ((AbstractFurnaceBlockEntity) blockEntity);
-		Player player = event.getEntity();
-		InteractionHand hand = event.getHand();
 		ItemStack stack = player.getItemInHand(hand);
 		Item item = stack.getItem();
 		ItemStack inputSlot = abstractBlockEntity.getItem(0);
@@ -88,8 +79,8 @@ public class FactorioFastEntitytransferEvent {
 		boolean inputSlotHasItemStack = !inputSlot.isEmpty();
 		boolean outputSlotHasItemStack = !outputSlot.isEmpty();
 		boolean fuelSlotHasItemStack = !fuelSlot.isEmpty();
-		int burnTime = ForgeHooks.getBurnTime(stack, recipeType);
-		int fuelBurnTime = ForgeHooks.getBurnTime(fuelSlot, recipeType);
+		int burnTime = ItemContentRegistries.FUEL_TIME.get(stack.getItem()).orElse(0);
+		int fuelBurnTime = ItemContentRegistries.FUEL_TIME.get(fuelSlot.getItem()).orElse(0);
 		int inputMaxStackSize = inputSlot.getMaxStackSize();
 		int inputStackSize = inputSlot.getCount();
 		int fuelMaxStackSize = fuelSlot.getMaxStackSize();
@@ -152,7 +143,7 @@ public class FactorioFastEntitytransferEvent {
 							stack.shrink(stackSize);
 						}
 					}
-					event.setCanceled(true);
+					return InteractionResult.SUCCESS;
 				}
 
 				// Insert smeltable fuel in input slot if fuel slot is already full of it
@@ -192,12 +183,12 @@ public class FactorioFastEntitytransferEvent {
 									stack.shrink(stackSize);
 								}
 							}
-							event.setCanceled(true);
+							return InteractionResult.SUCCESS;
 						}
-						event.setCanceled(true);
+						return InteractionResult.SUCCESS;
 					}
 				}
-				event.setCanceled(true);
+				return InteractionResult.SUCCESS;
 			}
 
 			// if fuel slot has fuel, input slot is empty and item is smeltable put item
@@ -213,7 +204,7 @@ public class FactorioFastEntitytransferEvent {
 						}
 					}
 				}
-				event.setCanceled(true);
+				return InteractionResult.SUCCESS;
 			}
 
 			// if input slot and item in hand matches
@@ -240,11 +231,11 @@ public class FactorioFastEntitytransferEvent {
 							stack.shrink(stackSize);
 						}
 					}
-					event.setCanceled(true);
+					return InteractionResult.SUCCESS;
 				}
-				event.setCanceled(true);
+				return InteractionResult.SUCCESS;
 			}
-			event.setCanceled(true);
+			return InteractionResult.SUCCESS;
 		}
 
 		// if item in hand has blasting/smelting/smoking result and has no burntime
@@ -283,13 +274,13 @@ public class FactorioFastEntitytransferEvent {
 							stack.shrink(stackSize);
 						}
 					}
-					event.setCanceled(true);
+					return InteractionResult.SUCCESS;
 				}
-				event.setCanceled(true);
+				return InteractionResult.SUCCESS;
 			}
-			event.setCanceled(true);
+			return InteractionResult.SUCCESS;
 		}
-		event.setCanceled(true);
+		return InteractionResult.SUCCESS;
 	}
 
 }
